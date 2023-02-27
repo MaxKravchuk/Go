@@ -27,11 +27,14 @@ type Response struct {
 }
 
 func setup(db *gorm.DB) {
-	db.AutoMigrate(&Urls{})
-	seed(db)
+	if (!db.Migrator().HasTable(&Urls{})) {
+		db.AutoMigrate(&Urls{})
+		seed(db)
+	}
 }
 
 func seed(db *gorm.DB) {
+
 	urls := []Urls{
 		{Url: "http://inv-nets.admixer.net/test-dsp/dsp?responseType=1&profile=1"},
 		{Url: "http://inv-nets.admixer.net/test-dsp/dsp?responseType=1&profile=2"},
@@ -60,7 +63,7 @@ func main() {
 	if err != nil {
 		panic("failed to connect database")
 	}
-	//setup(db)
+	setup(db)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
