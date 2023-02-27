@@ -6,36 +6,20 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/jinzhu/gorm/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-type Urls struct {
-	gorm.Model
-	id  int `gorm:"primaryKey`
-	Url string
-}
-
-type Request struct {
-	RequestId  int    `json:"request_id,omitempty"`
-	UrlPackage []int  `json:"url_package"`
-	Ip         string `json:"ip"`
-}
-
-type Response struct {
-	Price float64 `json:"price"`
-}
-
 func setup(db *gorm.DB) {
-	if (!db.Migrator().HasTable(&Urls{})) {
-		db.AutoMigrate(&Urls{})
+	if (!db.Migrator().HasTable(&models.Urls{})) {
+		db.AutoMigrate(&models.Urls{})
 		seed(db)
 	}
 }
 
 func seed(db *gorm.DB) {
-
-	urls := []Urls{
+	urls := []models.Urls{
 		{Url: "http://inv-nets.admixer.net/test-dsp/dsp?responseType=1&profile=1"},
 		{Url: "http://inv-nets.admixer.net/test-dsp/dsp?responseType=1&profile=2"},
 		{Url: "http://inv-nets.admixer.net/test-dsp/dsp?responseType=1&profile=3"},
@@ -48,7 +32,7 @@ func seed(db *gorm.DB) {
 }
 
 func GetUrls(ids []int, db *gorm.DB) []string {
-	var urls []Urls
+	var urls []models.Urls
 	db.Where("id IN ?", ids).Find(&urls)
 	var result []string
 	for _, url := range urls {
@@ -112,7 +96,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 
 func handlePost(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	decoder := json.NewDecoder(r.Body)
-	var req Request
+	var req models.Request
 	err := decoder.Decode(&req)
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -121,7 +105,7 @@ func handlePost(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	handleRequest(req, w, db)
 }
 
-func handleRequest(req Request, w http.ResponseWriter, db *gorm.DB) {
+func handleRequest(req models.Request, w http.ResponseWriter, db *gorm.DB) {
 	if req.Ip != "" {
 		if net.ParseIP(req.Ip) == nil {
 			http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -141,7 +125,7 @@ func handleRequest(req Request, w http.ResponseWriter, db *gorm.DB) {
 			continue
 		}
 		defer resp.Body.Close()
-		var priceResp Response
+		var priceResp models.Response
 		decoder := json.NewDecoder(resp.Body)
 		err = decoder.Decode(&priceResp)
 		if err != nil {
@@ -157,7 +141,7 @@ func handleRequest(req Request, w http.ResponseWriter, db *gorm.DB) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Response{
+	json.NewEncoder(w).Encode(models.Response{
 		Price: maxPrice,
 	})
 }
