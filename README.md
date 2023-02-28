@@ -1,4 +1,4 @@
-# Go
+# Go API
 ## JSON params for testing:
 
 - POST
