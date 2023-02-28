@@ -1,12 +1,12 @@
 # Go
-JSON params for testing:
+## JSON params for testing:
 
-POST
+- POST
 {
     "request_id" : <yourData>,
     "url_package" : <yourListOfInt>,
     "ip": "<ip>"
 }
-GET
+- GET
 http://localhost:8080/?request_id=<yourData>&url_package=<yourListOfInt>&ip=<IP>
-Url_package is in the range from 1 to 4
+## Url_package is in the range from 1 to 4
