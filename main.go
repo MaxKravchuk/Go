@@ -32,14 +32,20 @@ func seed(db *gorm.DB) {
 	}
 }
 
-func GetUrls(ids []int, db *gorm.DB) []string {
+func GetUrls(ids []int, db *gorm.DB) ([]string, error) {
 	var urls []models.Urls
-	db.Where("id IN ?", ids).Find(&urls)
+	err := db.Where("id IN ?", ids).Find(&urls).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(urls) != len(ids) {
+		return nil, fmt.Errorf("not all ids found in the database")
+	}
 	var result []string
 	for _, url := range urls {
 		result = append(result, url.Url)
 	}
-	return result
+	return result, nil
 }
 
 func main() {
@@ -108,11 +114,15 @@ func handlePost(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 func handleRequest(req models.Request, w http.ResponseWriter, db *gorm.DB) {
 	if !req.ValidateRequest() {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Error(w, "Invalid IP or url_package is empty", http.StatusNoContent)
 		return
 	}
 	prices := make([]float64, len(req.UrlPackage))
-	urls := GetUrls(req.UrlPackage, db)
+	urls, error := GetUrls(req.UrlPackage, db)
+	if error != nil {
+		http.Error(w, "Invalid id in package", http.StatusNoContent)
+		return
+	}
 	for i, _ := range urls {
 		resp, err := http.Get(urls[i])
 		if err != nil {
