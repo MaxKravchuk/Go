@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/jinzhu/gorm/models"
 	"gorm.io/driver/postgres"
@@ -50,11 +51,7 @@ func main() {
 	setup(db)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			handlePost(w, r, db)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
+		handler(w, r, db)
 	})
 
 	fmt.Println("Listening on :8080...")
@@ -65,13 +62,14 @@ func handler(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 	if r.Method == "POST" {
 		handlePost(w, r, db)
+	} else if r.Method == "GET" {
+		handleGet(w, r, db)
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-/*
-func handleGet(w http.ResponseWriter, r *http.Request) {
+func handleGet(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	query := r.URL.Query()
 	requestId, err := strconv.Atoi(query.Get("request_id"))
 	if err != nil {
@@ -87,12 +85,15 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		urlPackage = append(urlPackage, id)
 	}
 	ip := query.Get("ip")
-	handleRequest(Request{
+
+	var req models.Request = models.Request{
 		RequestId:  requestId,
 		UrlPackage: urlPackage,
 		Ip:         ip,
-	}, w)
-}*/
+	}
+
+	handleRequest(req, w, db)
+}
 
 func handlePost(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	decoder := json.NewDecoder(r.Body)
@@ -106,19 +107,12 @@ func handlePost(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 }
 
 func handleRequest(req models.Request, w http.ResponseWriter, db *gorm.DB) {
-	if req.Ip != "" {
-		if net.ParseIP(req.Ip) == nil {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-	}
-	if len(req.UrlPackage) == 0 {
-		http.Error(w, "No urls provided", http.StatusNoContent)
+	if !req.ValidateRequest() {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	prices := make([]float64, len(req.UrlPackage))
 	urls := GetUrls(req.UrlPackage, db)
-	println(urls)
 	for i, _ := range urls {
 		resp, err := http.Get(urls[i])
 		if err != nil {
